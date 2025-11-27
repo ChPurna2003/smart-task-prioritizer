@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import Select from "react-select";
+import "react-datepicker/dist/react-datepicker.css";
 
 /* ---------------------------------------
-   UI STYLES
+   SHARED UI STYLES
 ----------------------------------------- */
 
 const inputStyle = {
@@ -20,7 +21,6 @@ const inputStyle = {
 };
 
 const primaryButton = {
-  marginTop: "16px",
   padding: "12px 18px",
   background: "#0d5dc0",
   color: "white",
@@ -28,7 +28,16 @@ const primaryButton = {
   borderRadius: "10px",
   fontSize: "15px",
   cursor: "pointer",
-  width: "100%",
+};
+
+const secondaryButton = {
+  padding: "10px 16px",
+  background: "white",
+  color: "#145da0",
+  border: "1px solid #c5d3f5",
+  borderRadius: "10px",
+  fontSize: "14px",
+  cursor: "pointer",
 };
 
 const chip = {
@@ -43,11 +52,11 @@ const chip = {
 };
 
 /* ---------------------------------------
-   MAIN PAGE
+   MAIN HOME (3-STEP FLOW)
 ----------------------------------------- */
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("guide");
+  const [step, setStep] = useState(1); // 1 = Guide, 2 = Add Tasks, 3 = Results
   const [tasks, setTasks] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -61,9 +70,8 @@ export default function Home() {
     dependencies: [],
   });
 
-  /* ---------------------------------------
-      ADD TASK
-  ----------------------------------------- */
+  /* ---------------- ADD TASK ---------------- */
+
   const addTask = () => {
     if (!taskInput.id || !taskInput.title) {
       alert("Please enter Task ID and Title.");
@@ -94,9 +102,8 @@ export default function Home() {
     });
   };
 
-  /* ---------------------------------------
-      ANALYZE TASKS
-  ----------------------------------------- */
+  /* ---------------- ANALYZE TASKS ---------------- */
+
   const analyzeTasks = async () => {
     if (tasks.length === 0) {
       alert("Add at least one task!");
@@ -111,18 +118,17 @@ export default function Home() {
         tasks
       );
       setResults(res.data);
-      setActiveTab("app");
+      setStep(3); // go to results page
     } catch (err) {
-      console.log(err);
+      console.error(err);
       alert("Backend error — check your backend terminal.");
     }
 
     setLoading(false);
   };
 
-  /* ---------------------------------------
-      MAIN CONTAINER
-  ----------------------------------------- */
+  /* ---------------- LAYOUT WRAPPER ---------------- */
+
   return (
     <div
       style={{
@@ -132,54 +138,65 @@ export default function Home() {
         display: "flex",
         justifyContent: "center",
         padding: "40px 20px",
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ width: "100%", maxWidth: "900px" }}>
+      <div style={{ width: "100%", maxWidth: "960px" }}>
         {/* HEADER */}
-        <header style={{ textAlign: "center", marginBottom: "28px" }}>
-          <h1 style={{ margin: 0, fontSize: "32px", color: "#12355b" }}>
+        <header style={{ marginBottom: "24px" }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "32px",
+              color: "#12355b",
+              textAlign: "left",
+            }}
+          >
             Smart Task Prioritizer
           </h1>
-          <p style={{ color: "#6a7b99", marginTop: "6px" }}>
-            Rate tasks → Get a smart execution order.
+          <p style={{ color: "#6a7b99", marginTop: "6px", fontSize: "14px" }}>
+            A small decision engine to score tasks by importance, effort and
+            deadlines.
           </p>
         </header>
 
-        {/* TABS */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-          <TabButton
-            label="Guide"
-            active={activeTab === "guide"}
-            onClick={() => setActiveTab("guide")}
-          />
-          <TabButton
-            label="Task Prioritizer"
-            active={activeTab === "app"}
-            onClick={() => setActiveTab("app")}
-          />
-        </div>
+        {/* STEP INDICATOR */}
+        <StepIndicator step={step} />
 
-        {/* CARD */}
+        {/* WHITE CARD */}
         <div
           style={{
+            marginTop: "16px",
             background: "white",
             borderRadius: "20px",
-            padding: "32px 28px",
+            padding: "28px 26px",
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            border: "1px solid rgba(210,220,255,0.6)",
+            border: "1px solid rgba(210,220,255,0.7)",
           }}
         >
-          {activeTab === "guide" ? (
-            <GuidePage />
-          ) : (
-            <TaskPage
+          {step === 1 && (
+            <GuideStep
+              onNext={() => setStep(2)}
+            />
+          )}
+
+          {step === 2 && (
+            <TaskInputStep
               taskInput={taskInput}
               setTaskInput={setTaskInput}
-              addTask={addTask}
               tasks={tasks}
-              analyzeTasks={analyzeTasks}
-              results={results}
+              addTask={addTask}
+              onBack={() => setStep(1)}
+              onAnalyze={analyzeTasks}
               loading={loading}
+            />
+          )}
+
+          {step === 3 && (
+            <ResultsStep
+              results={results}
+              tasks={tasks}
+              onBack={() => setStep(2)}
             />
           )}
         </div>
@@ -189,48 +206,122 @@ export default function Home() {
 }
 
 /* ---------------------------------------
-   TAB BUTTON
+   STEP INDICATOR
 ----------------------------------------- */
 
-function TabButton({ active, label, onClick }) {
+function StepIndicator({ step }) {
+  const steps = [
+    { id: 1, label: "Guide" },
+    { id: 2, label: "Add Tasks" },
+    { id: 3, label: "Analyze Results" },
+  ];
+
   return (
-    <button
-      onClick={onClick}
+    <div
       style={{
-        padding: "12px 26px",
-        background: "transparent",
-        border: "none",
-        borderBottom: active ? "3px solid #145da0" : "3px solid transparent",
-        color: active ? "#145da0" : "#6b7a99",
-        cursor: "pointer",
-        fontSize: "15px",
-        fontWeight: active ? 700 : 500,
+        display: "flex",
+        gap: "10px",
+        fontSize: "13px",
+        color: "#6b7a99",
       }}
     >
-      {label}
-    </button>
+      {steps.map((s, index) => {
+        const isActive = s.id === step;
+        const isCompleted = s.id < step;
+
+        return (
+          <div
+            key={s.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: "999px",
+                border: isActive
+                  ? "2px solid #145da0"
+                  : "1px solid #c5d3f5",
+                background: isCompleted
+                  ? "#145da0"
+                  : isActive
+                  ? "#e3edff"
+                  : "white",
+                color: isCompleted ? "white" : "#145da0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 600,
+                fontSize: "13px",
+              }}
+            >
+              {s.id}
+            </div>
+            <span
+              style={{
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? "#12355b" : "#6b7a99",
+              }}
+            >
+              {s.label}
+            </span>
+            {index < steps.length - 1 && (
+              <div
+                style={{
+                  flex: 1,
+                  height: 1,
+                  background:
+                    step > s.id ? "#145da0" : "rgba(197,211,245,0.8)",
+                  margin: "0 6px",
+                  minWidth: 40,
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
 /* ---------------------------------------
-   GUIDE PAGE
+   STEP 1 — GUIDE
 ----------------------------------------- */
 
-function GuidePage() {
+function GuideStep({ onNext }) {
   return (
     <div>
-      <h2 style={{ color: "#12355b" }}>Task Rating Guide</h2>
+      <h2 style={{ color: "#12355b", marginTop: 0, marginBottom: "16px" }}>
+        1. How to rate your tasks
+      </h2>
+
+      <p
+        style={{
+          color: "#6b7a99",
+          marginBottom: "22px",
+          fontSize: "14px",
+          maxWidth: "620px",
+        }}
+      >
+        Use this once to understand the scoring. In the next step you’ll add
+        your real tasks and the system will calculate a priority score for
+        each one.
+      </p>
 
       <GuideSection title="Importance (1–10)">
         <div style={chip}>1–3 • Low importance</div>
-        <div style={chip}>4–6 • Medium</div>
-        <div style={chip}>7–8 • High</div>
-        <div style={chip}>9–10 • Critical</div>
+        <div style={chip}>4–6 • Medium importance</div>
+        <div style={chip}>7–8 • High importance</div>
+        <div style={chip}>9–10 • Critical importance</div>
       </GuideSection>
 
       <GuideSection title="Estimated Hours">
         <div style={chip}>0–2 hrs • Quick win</div>
-        <div style={chip}>3–6 hrs • Moderate</div>
+        <div style={chip}>3–6 hrs • Moderate task</div>
         <div style={chip}>6+ hrs • Large task</div>
       </GuideSection>
 
@@ -241,13 +332,28 @@ function GuidePage() {
         <div style={chip}>This week • Medium</div>
         <div style={chip}>&gt; 1 week • Lower urgency</div>
       </GuideSection>
+
+      <div
+        style={{
+          marginTop: "26px",
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <button
+          style={primaryButton}
+          onClick={onNext}
+        >
+          Next → Add Tasks
+        </button>
+      </div>
     </div>
   );
 }
 
 function GuideSection({ title, children }) {
   return (
-    <div style={{ marginBottom: "26px" }}>
+    <div style={{ marginBottom: "24px" }}>
       <h3 style={{ color: "#23406a", marginBottom: "10px" }}>{title}</h3>
       <div
         style={{
@@ -263,25 +369,55 @@ function GuideSection({ title, children }) {
 }
 
 /* ---------------------------------------
-   TASK PAGE
+   STEP 2 — TASK INPUT
 ----------------------------------------- */
 
-function TaskPage({
+function TaskInputStep({
   taskInput,
   setTaskInput,
   addTask,
   tasks,
-  analyzeTasks,
-  results,
+  onBack,
+  onAnalyze,
   loading,
 }) {
   return (
     <div>
-      <h2 style={{ color: "#12355b" }}>Task Prioritizer</h2>
+      <div
+        style={{
+          marginBottom: "16px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              color: "#12355b",
+              marginTop: 0,
+              marginBottom: "6px",
+            }}
+          >
+            2. Add your tasks
+          </h2>
+          <p
+            style={{
+              color: "#6b7a99",
+              fontSize: "14px",
+              margin: 0,
+            }}
+          >
+            Create individual tasks with ID, title, importance, effort and
+            optional dependencies.
+          </p>
+        </div>
 
-      <p style={{ color: "#6b7a99", marginBottom: "20px" }}>
-        Add tasks → Click <b>Analyze</b> → See smart ordering.
-      </p>
+        <button style={secondaryButton} onClick={onBack}>
+          ← Back to Guide
+        </button>
+      </div>
 
       {/* ADD TASK FORM */}
       <div
@@ -292,7 +428,9 @@ function TaskPage({
           marginBottom: "24px",
         }}
       >
-        <h3 style={{ marginBottom: "14px", color: "#23406a" }}>+ Add Task</h3>
+        <h3 style={{ marginBottom: "14px", color: "#23406a", marginTop: 0 }}>
+          + Add Task
+        </h3>
 
         <div
           style={{
@@ -304,7 +442,7 @@ function TaskPage({
           {/* Task ID */}
           <input
             style={inputStyle}
-            placeholder="Task ID"
+            placeholder="Task ID (e.g. T1)"
             value={taskInput.id}
             onChange={(e) =>
               setTaskInput({ ...taskInput, id: e.target.value })
@@ -346,7 +484,7 @@ function TaskPage({
             }
           />
 
-          {/* DATE PICKER */}
+          {/* Date Picker */}
           <div style={{ width: "100%" }}>
             <DatePicker
               selected={
@@ -363,10 +501,11 @@ function TaskPage({
               placeholderText="Select due date"
               className="date-input"
               dateFormat="yyyy-MM-dd"
+              wrapperClassName="date-picker-wrapper"
             />
           </div>
 
-          {/* DEPENDENCIES MULTISELECT */}
+          {/* Dependencies Multiselect */}
           <div style={{ width: "100%" }}>
             <Select
               isMulti
@@ -386,13 +525,13 @@ function TaskPage({
                   dependencies: selected ? selected.map((s) => s.value) : [],
                 })
               }
-              placeholder="Select dependencies"
+              placeholder="Select dependencies (optional)"
               styles={{
                 control: (base) => ({
                   ...base,
                   borderRadius: "10px",
                   borderColor: "#b4c6f0",
-                  padding: "4px",
+                  padding: "2px",
                   fontSize: "14px",
                   "&:hover": {
                     borderColor: "#8aa8e0",
@@ -408,22 +547,16 @@ function TaskPage({
                   color: "#1b2f52",
                   fontWeight: 500,
                 }),
-                multiValueRemove: (base) => ({
-                  ...base,
-                  color: "#1b2f52",
-                  ":hover": {
-                    backgroundColor: "#0d5dc0",
-                    color: "white",
-                  },
-                }),
               }}
             />
           </div>
         </div>
 
-        <button style={primaryButton} onClick={addTask}>
-          Add Task
-        </button>
+        <div style={{ marginTop: "16px" }}>
+          <button style={primaryButton} onClick={addTask}>
+            Add Task
+          </button>
+        </div>
       </div>
 
       {/* TASK LIST */}
@@ -436,7 +569,7 @@ function TaskPage({
             marginBottom: "24px",
           }}
         >
-          <h3 style={{ marginBottom: "12px" }}>
+          <h3 style={{ marginBottom: "12px", marginTop: 0 }}>
             📋 Current Tasks ({tasks.length})
           </h3>
           {tasks.map((t) => (
@@ -449,51 +582,202 @@ function TaskPage({
             >
               <strong>{t.title}</strong> <span>· {t.id}</span>
               <div style={{ fontSize: "13px", color: "#6b7a99" }}>
-                Importance {t.importance} · {t.estimated_hours || "?"} hrs ·{" "}
-                {t.due_date || "No date"}
+                Importance {t.importance || "?"} ·{" "}
+                {t.estimated_hours || "?"} hrs ·{" "}
+                {t.due_date || "No date"} ·{" "}
+                {t.dependencies.length > 0
+                  ? `Depends on ${t.dependencies.join(", ")}`
+                  : "No dependencies"}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ANALYZE BUTTON */}
-      <button onClick={analyzeTasks} style={primaryButton} disabled={loading}>
-        {loading ? "Analyzing..." : "🚀 Analyze Tasks"}
-      </button>
+      {/* ANALYZE CTA */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "10px",
+          alignItems: "center",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "12px",
+            color: "#6b7a99",
+          }}
+        >
+          When you’re done adding tasks, run the analyzer.
+        </span>
+        <button
+          onClick={onAnalyze}
+          style={primaryButton}
+          disabled={loading}
+        >
+          {loading ? "Analyzing..." : "🚀 Analyze & View Results"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
-      {/* RESULTS */}
-      {results.length > 0 && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>📊 Prioritized Results</h3>
-          {results.map((r, index) => (
-            <div
-              key={r.id}
-              style={{
-                border: "1px solid #e0e5f2",
-                padding: "16px",
-                borderRadius: "12px",
-                background: "#f9fbff",
-                marginBottom: "12px",
-              }}
-            >
+/* ---------------------------------------
+   STEP 3 — RESULTS
+----------------------------------------- */
+
+function ResultsStep({ results, tasks, onBack }) {
+  return (
+    <div>
+      <div
+        style={{
+          marginBottom: "16px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              color: "#12355b",
+              marginTop: 0,
+              marginBottom: "6px",
+            }}
+          >
+            3. Recommended execution order
+          </h2>
+          <p
+            style={{
+              color: "#6b7a99",
+              fontSize: "14px",
+              margin: 0,
+            }}
+          >
+            Tasks are sorted by the priority score computed by the backend
+            (urgency, importance, effort, dependencies).
+          </p>
+        </div>
+
+        <button style={secondaryButton} onClick={onBack}>
+          ← Back to Tasks
+        </button>
+      </div>
+
+      {results.length === 0 ? (
+        <div
+          style={{
+            border: "1px dashed #c5d3f5",
+            padding: "20px",
+            borderRadius: "14px",
+            textAlign: "center",
+            color: "#6b7a99",
+            fontSize: "14px",
+          }}
+        >
+          No results yet. Go back, add tasks and click{" "}
+          <b>“Analyze &amp; View Results”</b>.
+        </div>
+      ) : (
+        <div>
+          {results.map((r, index) => {
+            // Simple visual priority indicator
+            let badgeColor = "#d1e7ff";
+            let badgeText = "Medium";
+
+            if (r.score >= 60) {
+              badgeColor = "#ffe1e1";
+              badgeText = "High";
+            } else if (r.score <= 30) {
+              badgeColor = "#e3fbe3";
+              badgeText = "Low";
+            }
+
+            const original = tasks.find((t) => t.id === r.id);
+
+            return (
               <div
+                key={r.id}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "6px",
+                  border: "1px solid #e0e5f2",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  background: "#f9fbff",
+                  marginBottom: "12px",
                 }}
               >
-                <strong>
-                  {index + 1}. {r.title}
-                </strong>
-                <span style={{ color: "#0d5dc0" }}>Score: {r.score}</span>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "6px",
+                  }}
+                >
+                  <div>
+                    <strong>
+                      {index + 1}. {r.title}
+                    </strong>{" "}
+                    <span style={{ color: "#7b879a", fontSize: "13px" }}>
+                      · {r.id}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <span
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "999px",
+                        background: badgeColor,
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#25324b",
+                      }}
+                    >
+                      {badgeText} priority
+                    </span>
+                    <span
+                      style={{
+                        color: "#0d5dc0",
+                        fontWeight: 600,
+                        fontSize: "14px",
+                      }}
+                    >
+                      Score: {r.score}
+                    </span>
+                  </div>
+                </div>
+
+                {/* details row */}
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#6b7a99",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Importance: {original?.importance ?? "?"} · Effort:{" "}
+                  {original?.estimated_hours ?? "?"} hrs · Due:{" "}
+                  {original?.due_date || "No date"} ·{" "}
+                  {original?.dependencies?.length
+                    ? `Depends on ${original.dependencies.join(", ")}`
+                    : "No dependencies"}
+                </div>
+
+                <div
+                  style={{
+                    color: "#5d6b89",
+                    fontSize: "13px",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {r.explanation}
+                </div>
               </div>
-              <div style={{ color: "#6b7a99", fontSize: "13px" }}>
-                {r.explanation}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
