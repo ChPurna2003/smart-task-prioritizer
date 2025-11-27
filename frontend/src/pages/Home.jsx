@@ -114,7 +114,7 @@ export default function Home() {
 
     try {
       const res = await axios.post(
-        https://smart-task-prioritizer.onrender.com/api/tasks/analyze/,
+        "https://smart-task-prioritizer.onrender.com/api/tasks/analyze/?mode=smart_balance",
         tasks
       );
       setResults(res.data);
